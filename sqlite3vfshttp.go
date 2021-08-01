@@ -14,6 +14,7 @@ import (
 type HttpVFS struct {
 	URL          string
 	CacheHandler CacheHandler
+	RoundTripper http.RoundTripper
 }
 
 type CacheHandler interface {
@@ -25,6 +26,7 @@ func (vfs *HttpVFS) Open(name string, flags sqlite3vfs.OpenFlag) (sqlite3vfs.Fil
 	tf := &httpFile{
 		url:          vfs.URL,
 		cacheHandler: vfs.CacheHandler,
+		roundTripper: vfs.RoundTripper,
 	}
 
 	return tf, flags, nil
@@ -49,13 +51,23 @@ func (vfs *HttpVFS) FullPathname(name string) string {
 type httpFile struct {
 	url          string
 	cacheHandler CacheHandler
+	roundTripper http.RoundTripper
 }
 
 func (tf *httpFile) Close() error {
 	return nil
 }
 
-func (tf *httpFile) ReadAt(p []byte, off int64) (int, error) {
+func (tf *httpFile) client() *http.Client {
+	if tf.roundTripper == nil {
+		return http.DefaultClient
+	}
+	return &http.Client{
+		Transport: tf.roundTripper,
+	}
+}
+
+func (tf *httpFile) ReadAt(p []byte, off int64) (nnn int, errrr error) {
 	if tf.cacheHandler != nil {
 		if ok := tf.cacheHandler.Get(p, off); ok {
 			return len(p), nil
@@ -66,9 +78,10 @@ func (tf *httpFile) ReadAt(p []byte, off int64) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	req.Header.Add("Range", fmt.Sprintf("bytes=%d-%d", off, off+int64(len(p)-1)))
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := tf.client().Do(req)
 	if err != nil {
 		return 0, err
 	}
@@ -101,14 +114,14 @@ func (tf *httpFile) Sync(flag sqlite3vfs.SyncType) error {
 
 var invalidContentRangeErr = errors.New("invalid Content-Range response")
 
-func (tf *httpFile) FileSize() (int64, error) {
+func (tf *httpFile) FileSize() (nnn int64, eee error) {
 	req, err := http.NewRequest("GET", tf.url, nil)
 	if err != nil {
 		return 0, err
 	}
-	req.Header.Add("Range", "bytes=0-0")
 
-	resp, err := http.DefaultClient.Do(req)
+	req.Header.Set("Range", "bytes=0-0")
+	resp, err := tf.client().Do(req)
 	if err != nil {
 		return 0, err
 	}

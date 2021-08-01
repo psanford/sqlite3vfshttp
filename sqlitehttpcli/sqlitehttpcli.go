@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -14,6 +15,8 @@ import (
 
 var url = flag.String("url", "", "URL of sqlite db")
 var query = flag.String("query", "", "Query to run")
+var referer = flag.String("referer", "", "HTTP Referer")
+var userAgent = flag.String("user-agent", "", "HTTP User agent")
 
 func main() {
 	flag.Parse()
@@ -24,14 +27,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	vfs := sqlite3vfshttp.HttpVFS{URL: *url}
+	vfs := sqlite3vfshttp.HttpVFS{
+		URL: *url,
+		RoundTripper: &roundTripper{
+			referer:   *referer,
+			userAgent: *userAgent,
+		},
+	}
 
 	err := sqlite3vfs.RegisterVFS("httpvfs", &vfs)
 	if err != nil {
 		log.Fatalf("register vfs err: %s", err)
 	}
 
-	db, err := sql.Open("sqlite3", "not_a_read_name.db?vfs=httpvfs&mode=ro")
+	db, err := sql.Open("sqlite3", "not_a_real_name.db?vfs=httpvfs&mode=ro")
 	if err != nil {
 		log.Fatalf("open db err: %s", err)
 	}
@@ -46,7 +55,7 @@ func main() {
 	for rows.Next() {
 		rows.Columns()
 
-		columns := make([]string, len(cols))
+		columns := make([]*string, len(cols))
 		columnPointers := make([]interface{}, len(cols))
 		for i := range columns {
 			columnPointers[i] = &columns[i]
@@ -57,11 +66,36 @@ func main() {
 			log.Fatalf("query rows err: %s", err)
 		}
 
-		fmt.Printf("row: %+v\n", columns)
+		names := make([]string, 0, len(columns))
+		for _, col := range columns {
+			if col == nil {
+				names = append(names, "NULL")
+			} else {
+				names = append(names, *col)
+			}
+		}
+		fmt.Printf("row: %+v\n", names)
 	}
 	err = rows.Close()
 	if err != nil {
 		log.Fatalf("query rows err: %s", err)
 	}
 
+}
+
+type roundTripper struct {
+	referer   string
+	userAgent string
+}
+
+func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if rt.referer != "" {
+		req.Header.Set("Referer", rt.referer)
+	}
+
+	if rt.userAgent != "" {
+		req.Header.Set("User-Agent", rt.userAgent)
+	}
+
+	return http.DefaultTransport.RoundTrip(req)
 }
