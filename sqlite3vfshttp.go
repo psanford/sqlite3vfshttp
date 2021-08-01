@@ -11,29 +11,30 @@ import (
 	"github.com/psanford/sqlite3vfs"
 )
 
-func New(url string) sqlite3vfs.VFS {
-	return &httpVFS{
-		url: url,
-	}
+type HttpVFS struct {
+	URL          string
+	CacheHandler CacheHandler
 }
 
-type httpVFS struct {
-	url string
+type CacheHandler interface {
+	Get(p []byte, off int64) bool
+	Put(p []byte, off int64)
 }
 
-func (vfs *httpVFS) Open(name string, flags sqlite3vfs.OpenFlag) (sqlite3vfs.File, sqlite3vfs.OpenFlag, error) {
+func (vfs *HttpVFS) Open(name string, flags sqlite3vfs.OpenFlag) (sqlite3vfs.File, sqlite3vfs.OpenFlag, error) {
 	tf := &httpFile{
-		url: vfs.url,
+		url:          vfs.URL,
+		cacheHandler: vfs.CacheHandler,
 	}
 
 	return tf, flags, nil
 }
 
-func (vfs *httpVFS) Delete(name string, dirSync bool) error {
+func (vfs *HttpVFS) Delete(name string, dirSync bool) error {
 	return sqlite3vfs.ReadOnlyError
 }
 
-func (vfs *httpVFS) Access(name string, flag sqlite3vfs.AccessFlag) (bool, error) {
+func (vfs *HttpVFS) Access(name string, flag sqlite3vfs.AccessFlag) (bool, error) {
 	if strings.HasSuffix(name, "-wal") || strings.HasSuffix(name, "-journal") {
 		return false, nil
 	}
@@ -41,12 +42,13 @@ func (vfs *httpVFS) Access(name string, flag sqlite3vfs.AccessFlag) (bool, error
 	return true, nil
 }
 
-func (vfs *httpVFS) FullPathname(name string) string {
+func (vfs *HttpVFS) FullPathname(name string) string {
 	return name
 }
 
 type httpFile struct {
-	url string
+	url          string
+	cacheHandler CacheHandler
 }
 
 func (tf *httpFile) Close() error {
@@ -54,6 +56,12 @@ func (tf *httpFile) Close() error {
 }
 
 func (tf *httpFile) ReadAt(p []byte, off int64) (int, error) {
+	if tf.cacheHandler != nil {
+		if ok := tf.cacheHandler.Get(p, off); ok {
+			return len(p), nil
+		}
+	}
+
 	req, err := http.NewRequest("GET", tf.url, nil)
 	if err != nil {
 		return 0, err
@@ -67,7 +75,16 @@ func (tf *httpFile) ReadAt(p []byte, off int64) (int, error) {
 
 	defer resp.Body.Close()
 
-	return io.ReadFull(resp.Body, p)
+	n, err := io.ReadFull(resp.Body, p)
+	if err != nil {
+		return 0, err
+	}
+
+	if tf.cacheHandler != nil {
+		tf.cacheHandler.Put(p, off)
+	}
+
+	return n, nil
 }
 
 func (tf *httpFile) WriteAt(b []byte, off int64) (n int, err error) {

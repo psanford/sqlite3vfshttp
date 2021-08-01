@@ -24,9 +24,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	vfs := sqlite3vfshttp.New(*url)
+	vfs := sqlite3vfshttp.HttpVFS{URL: *url}
 
-	err := sqlite3vfs.RegisterVFS("httpvfs", vfs)
+	err := sqlite3vfs.RegisterVFS("httpvfs", &vfs)
 	if err != nil {
 		log.Fatalf("register vfs err: %s", err)
 	}
