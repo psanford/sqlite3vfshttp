@@ -67,7 +67,7 @@ func (tf *httpFile) client() *http.Client {
 	}
 }
 
-func (tf *httpFile) ReadAt(p []byte, off int64) (nnn int, errrr error) {
+func (tf *httpFile) ReadAt(p []byte, off int64) (int, error) {
 	if tf.cacheHandler != nil {
 		if ok := tf.cacheHandler.Get(p, off); ok {
 			return len(p), nil
@@ -114,7 +114,7 @@ func (tf *httpFile) Sync(flag sqlite3vfs.SyncType) error {
 
 var invalidContentRangeErr = errors.New("invalid Content-Range response")
 
-func (tf *httpFile) FileSize() (nnn int64, eee error) {
+func (tf *httpFile) FileSize() (int64, error) {
 	req, err := http.NewRequest("GET", tf.url, nil)
 	if err != nil {
 		return 0, err
