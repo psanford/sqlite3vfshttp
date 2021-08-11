@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/psanford/sqlite3vfs"
@@ -97,5 +98,15 @@ func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		req.Header.Set("User-Agent", rt.userAgent)
 	}
 
-	return http.DefaultTransport.RoundTrip(req)
+	tr := http.DefaultTransport
+
+	if req.URL.Scheme == "file" {
+		path := req.URL.Path
+		root := filepath.Dir(path)
+		base := filepath.Base(path)
+		tr = http.NewFileTransport(http.Dir(root))
+		req.URL.Path = base
+	}
+
+	return tr.RoundTrip(req)
 }
