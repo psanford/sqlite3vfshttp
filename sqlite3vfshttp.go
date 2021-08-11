@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -126,7 +127,7 @@ func (tf *httpFile) FileSize() (int64, error) {
 		return 0, err
 	}
 
-	io.Copy(io.Discard, resp.Body)
+	io.Copy(ioutil.Discard, resp.Body)
 	resp.Body.Close()
 
 	rangeHeader := resp.Header.Get("Content-Range")
