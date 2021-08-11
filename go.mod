@@ -1,6 +1,6 @@
 module github.com/psanford/sqlite3vfshttp
 
-go 1.17
+go 1.15
 
 require (
 	github.com/google/go-cmp v0.5.6
