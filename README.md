@@ -96,6 +96,3 @@ row: [BOPQ.S06AC000000000A 2012.03 18477  F Dollars 6 Balance of Payments - BOP 
 row: [BOPQ.S06AC000000000A 2012.06 18270  F Dollars 6 Balance of Payments - BOP BPM6 Quarterly, Balance of payments major components Actual]
 
 ```
-
-
-```
