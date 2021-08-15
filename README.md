@@ -34,6 +34,9 @@ The original purpose of this library was to allow an AWS Lambda function to be a
 
 This is possible even for private files stored in S3 by generating a presigned URL and passing that to this library. That allows the client to make HTTP Get range requests without it needing to know how to sign S3 requests.
 
+## Building a loadable extension for the sqlite3 cli
+
+The `sqlite3` cli supports runtime loadable extensions. We can build `sqlite3vfshttp` as a shared library, and then load it from the `sqlite3` cli to interactively query sqlite databases over http connections. The shared library code is located in the `sqlite3http-ext` directory. See the sqlite3http-ext/README.md for more details.
 
 ## Demo
 
@@ -53,7 +56,44 @@ series_title_1);
 
 ```
 
-You can query this dataset using the `sqlitehttpcli` example tool:
+You can query this dataset from the `sqlite3` cli tool using the shared library extension:
+```
+$ cd sqlite3http-ext
+
+# build httpvfs.so shared library
+$ make
+go build -tags SQLITE3VFS_LOADABLE_EXT -o sqlite3http_ext.a -buildmode=c-archive sqlite3http_ext.go
+gcc -g -fPIC -shared -o httpvfs.so sqlite3http_ext.c sqlite3http_ext.a
+
+# set url of sqlite3 db as environment variable SQLITE3VFSHTTP_URL:
+$ export SQLITE3VFSHTTP_URL='https://www.sanford.io/demo.db'
+
+$ sqlite3
+SQLite version 3.31.1 2020-01-27 19:55:54
+Enter ".help" for usage hints.
+Connected to a transient in-memory database.
+Use ".open FILENAME" to reopen on a persistent database.
+sqlite> -- load extention
+sqlite> .load ./httpvfs
+sqlite> -- open db using vfs=httpvfs, note you must use the sqlite uri syntax which starts with file://
+sqlite> .open file:///foo.db?vfs=httpvfs
+sqlite> -- query from remote db
+sqlite> SELECT * from csv where period > '2010' limit 10;
+series_reference      period      data_value  suppressed  status      units       magntude    subject                    grp                                                   series_title_1
+--------------------  ----------  ----------  ----------  ----------  ----------  ----------  -------------------------  ----------------------------------------------------  --------------
+BOPQ.S06AC000000000A  2010.03     17463                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2010.06     17260                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2010.09     15419                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2010.12     17088                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2011.03     18516                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2011.06     18835                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2011.09     16390                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2011.12     18748                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2012.03     18477                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2012.06     18270                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+```
+
+Alternatively, you can query this dataset using the `sqlitehttpcli` example tool:
 
 ```
 # query the sqlite schema table
