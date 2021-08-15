@@ -21,3 +21,39 @@ When opening the database, you must specify `vfs=httpvfs`. This requires you to 
 ```
 sqlite> .open file:///foo.db?vfs=httpvfs
 ```
+
+## Example
+
+```
+# build httpvfs.so shared library
+$ make
+go build -tags SQLITE3VFS_LOADABLE_EXT -o sqlite3http_ext.a -buildmode=c-archive sqlite3http_ext.go
+gcc -g -fPIC -shared -o httpvfs.so sqlite3http_ext.c sqlite3http_ext.a
+
+# set url of sqlite3 db as environment variable SQLITE3VFSHTTP_URL:
+$ export SQLITE3VFSHTTP_URL='https://www.sanford.io/demo.db'
+
+$ sqlite3
+SQLite version 3.31.1 2020-01-27 19:55:54
+Enter ".help" for usage hints.
+Connected to a transient in-memory database.
+Use ".open FILENAME" to reopen on a persistent database.
+sqlite> -- load extention
+sqlite> .load ./httpvfs
+sqlite> -- open db using vfs=httpvfs, note you must use the sqlite uri syntax which starts with file://
+sqlite> .open file:///foo.db?vfs=httpvfs
+sqlite> -- query from remote db
+sqlite> SELECT * from csv where period > '2010' limit 10;
+series_reference      period      data_value  suppressed  status      units       magntude    subject                    grp                                                   series_title_1
+--------------------  ----------  ----------  ----------  ----------  ----------  ----------  -------------------------  ----------------------------------------------------  --------------
+BOPQ.S06AC000000000A  2010.03     17463                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2010.06     17260                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2010.09     15419                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2010.12     17088                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2011.03     18516                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2011.06     18835                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2011.09     16390                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2011.12     18748                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2012.03     18477                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+BOPQ.S06AC000000000A  2012.06     18270                   F           Dollars     6           Balance of Payments - BOP  BPM6 Quarterly, Balance of payments major components  Actual
+```
