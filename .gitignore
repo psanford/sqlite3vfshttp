@@ -1,2 +1,3 @@
-httpvfs.so
-sqlite3http_ext.a
+sqlitehttpcli/sqlitehttpcli
+sqlite3http-ext/httpvfs.so
+sqlite3http-ext/sqlite3http_ext.a

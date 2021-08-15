@@ -1,3 +1,6 @@
+//go:build SQLITE3VFS_LOADABLE_EXT
+// +build SQLITE3VFS_LOADABLE_EXT
+
 package main
 
 // import C is necessary for us to export SqliteHTTPRegister in the c-archive .a file
