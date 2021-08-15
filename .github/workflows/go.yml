@@ -22,10 +22,18 @@ jobs:
       uses: actions/checkout@v1
 
     - name: Build
-      run: go build -v ./...
+      run: go build -v .
+
+    - name: Build extension
+      run: make -C sqlite3http-ext
+
+    - name: Build cli tool
+      run: |
+        cd sqlitehttpcli
+        go build -v .
 
     - name: Test
-      run: go test -v ./... --timeout 60s
+      run: go test -v . --timeout 60s
 
     - name: Meta Tests
       run: go test -v -tags ci ./ci --timeout 60s
