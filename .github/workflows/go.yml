@@ -8,7 +8,7 @@ jobs:
     timeout-minutes: 3
     strategy:
       matrix:
-        go-version: [1.15.15, 1.16.7, 1.17rc2]
+        go-version: [1.17.11, 1.18.3]
         os: [ubuntu-latest]
 
     steps:
@@ -17,6 +17,11 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
       id: go
+
+    - name: Install Zig
+      uses: goto-bus-stop/setup-zig@0cee191d0784787b27367e56fb83cde121658bbc
+      with:
+        version: 0.9.1
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
@@ -33,3 +38,6 @@ jobs:
     - name: Meta Tests
       run: go test -v -tags ci ./ci --timeout 60s
       if: ${{ runner.os == 'Linux' }}
+
+    - name: Cross Compile ARM with zig
+      run: CGO_ENABLED=1 CC="zig cc -target aarch64-linux-musl" CXX="zig cc -target aarch64-linux-musl"  GOARCH=arm64 go build
